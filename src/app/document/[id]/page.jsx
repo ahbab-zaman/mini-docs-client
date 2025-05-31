@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import QuillEditor from "@/app/components/QuillEditor"; // adjust path if needed
 
+
 export default function DocumentPage() {
   const searchParams = useSearchParams();
   const title = searchParams.get("title") || "Untitled Document";
