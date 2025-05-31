@@ -1,12 +1,13 @@
 import React from 'react';
 import Navbar from './components/Navbar';
-import TemplateCardList from './components/TemplateCardList';
+import CreateDocumentButton from './components/CreateDocumentButton';
 
 const page = () => {
   return (
     <div>
      <Navbar />
-     <TemplateCardList />
+     {/* <TemplateCardList /> */}
+     <CreateDocumentButton />
     </div>
   );
 };

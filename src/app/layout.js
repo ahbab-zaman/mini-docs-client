@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Mini Docs",
   description: "A mini web app where user can share and view their docs",
+  icons: "./logo.png",
 };
 
 export default function RootLayout({ children }) {
