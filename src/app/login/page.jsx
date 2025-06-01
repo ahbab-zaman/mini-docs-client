@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import google from "../assets/google.png";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 
 // Modal Component
 function Modal({ show, message, success, onClose }) {
@@ -112,6 +113,15 @@ export default function LoginForm() {
             Login
           </button>
         </form>
+
+        <div>
+          <p className="py-2 text-center">
+            New to this account?
+            <Link href={"/register"}>
+              <span className="text-purple-600 font-bold">register</span>
+            </Link>
+          </p>
+        </div>
 
         <div className="my-4 text-center text-gray-500">or</div>
 

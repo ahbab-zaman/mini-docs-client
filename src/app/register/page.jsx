@@ -1,42 +1,82 @@
 "use client";
 
 import React, { useState } from "react";
-import API from "../AxiosInstance/api";
-import { motion, AnimatePresence } from "framer-motion";
-import { FcGoogle } from "react-icons/fc";
 import { useRouter } from "next/navigation";
+import API from "../AxiosInstance/api";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
-export default function Register() {
+// Modal Component
+function Modal({ show, message, success, onClose }) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className={`bg-white p-6 rounded shadow-xl max-w-sm w-full text-center ${
+          success ? "border-green-500" : "border-red-500"
+        }`}
+      >
+        <h2
+          className={`text-xl font-semibold mb-3 ${
+            success ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {success ? "Success" : "Error"}
+        </h2>
+        <p className="mb-4">{message}</p>
+        <button
+          onClick={onClose}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+        >
+          Close
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function RegisterForm() {
   const [form, setForm] = useState({
     fullName: "",
-    avatar: "",
     email: "",
     password: "",
+    avatarUrl: "", // added for image URL
   });
-  const router = useRouter();
-
   const [modal, setModal] = useState({
     show: false,
     message: "",
-    success: true,
+    success: false,
   });
+
+  const router = useRouter();
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const res = await API.post("/auth/register", form);
+      const res = await API.post("/auth/register", form, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       localStorage.setItem("token", res.data.token);
-      setTimeout(() => {
-        router.push("/"); // Navigate to home
-      }, 1000);
+
       setModal({
         show: true,
         message: "Registration successful!",
         success: true,
       });
+
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
     } catch (err) {
       setModal({
         show: true,
@@ -46,107 +86,79 @@ export default function Register() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    setModal({
-      show: true,
-      message: "Google Sign-In coming soon...",
-      success: true,
-    });
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-200 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
       <motion.div
-        initial={{ opacity: 0, y: 60 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative"
+        transition={{ duration: 0.5 }}
+        className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md"
       >
-        <h2 className="text-3xl font-bold text-center text-purple-700 mb-6">
-          Create Your Account
+        <h2 className="text-2xl font-bold mb-6 text-center text-purple-700">
+          Create an Account
         </h2>
-
-        <form onSubmit={handleRegister} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             name="fullName"
+            type="text"
             onChange={handleChange}
+            value={form.fullName}
             placeholder="Full Name"
             required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
-          <input
-            name="avatar"
-            onChange={handleChange}
-            placeholder="Avatar URL (optional)"
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-          />
+
           <input
             name="email"
             type="email"
             onChange={handleChange}
+            value={form.email}
             placeholder="Email"
             required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
+
           <input
             name="password"
             type="password"
             onChange={handleChange}
+            value={form.password}
             placeholder="Password"
             required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+
+          <input
+            name="avatarUrl"
+            type="text"
+            onChange={handleChange}
+            value={form.avatarUrl}
+            placeholder="Image URL (optional)"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
+          />
+
+          <button
             type="submit"
-            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
+            className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition"
           >
             Register
-          </motion.button>
+          </button>
         </form>
 
-        <div className="my-6 flex items-center justify-center">
-          <span className="border-t w-1/4"></span>
-          <span className="mx-2 text-gray-500">OR</span>
-          <span className="border-t w-1/4"></span>
-        </div>
-
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleGoogleSignIn}
-          className="flex items-center justify-center gap-3 w-full border border-gray-300 py-2 rounded-lg hover:bg-gray-100 transition"
-        >
-          <FcGoogle size={24} />
-          <span>Sign in with Google</span>
-        </motion.button>
-
-        {/* Modal */}
-        <AnimatePresence>
-          {modal.show && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white border shadow-lg p-4 rounded-lg z-50"
-            >
-              <p
-                className={`text-sm font-medium ${
-                  modal.success ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {modal.message}
-              </p>
-              <button
-                onClick={() => setModal({ ...modal, show: false })}
-                className="text-xs text-gray-500 hover:underline mt-2"
-              >
-                Close
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <p className="py-2 text-center">
+          Already have an account?
+          <Link href="/login">
+            <span className="text-blue-600 font-bold"> Login</span>
+          </Link>
+        </p>
       </motion.div>
+
+      <Modal
+        show={modal.show}
+        message={modal.message}
+        success={modal.success}
+        onClose={() => setModal({ ...modal, show: false })}
+      />
     </div>
   );
 }
