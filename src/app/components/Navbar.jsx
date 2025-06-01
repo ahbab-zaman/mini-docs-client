@@ -1,6 +1,12 @@
+"use client";
 import logo from "@/app/assets/google-docs.png";
 import Image from "next/image";
+import { useSession, signIn, signOut } from "next-auth/react";
 const Navbar = () => {
+  const { data: session, status } = useSession();
+  if (status === "loading") {
+    return <p>Loading...</p>; // Optional loading state
+  }
   return (
     <div className="px-6 py-4 flex justify-between items-center">
       <div className="flex items-center gap-2">
@@ -38,7 +44,35 @@ const Navbar = () => {
           </svg>
         </button>
       </form>
-      <div></div>
+      <div className="flex items-center gap-4">
+        {session?.user ? (
+          <>
+            <Image
+              src={session.user.avatar || session.user.image}
+              alt="Avatar"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
+            <span className="text-sm font-medium">
+              {session.user.fullName || session.user.name}
+            </span>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => signIn("google", { callbackUrl: "/login" })}
+            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+          >
+            Login
+          </button>
+        )}
+      </div>
     </div>
   );
 };
