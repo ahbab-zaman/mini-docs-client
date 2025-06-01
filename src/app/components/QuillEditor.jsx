@@ -15,67 +15,96 @@ export default function QuillEditor({ value, onChange }) {
   return (
     <Editor
       value={value}
-      onChange={onChange}
+      onEditorChange={onChange}
       apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY}
       init={{
+        height: 500,
+        menubar: true,
+        skin: "oxide-dark",
+        content_css: "dark",
         plugins: [
-          // Core editing features
-          "anchor",
+          "preview",
+          "importcss",
+          "searchreplace",
           "autolink",
-          "charmap",
-          "codesample",
-          "emoticons",
+          "autosave",
+          "save",
+          "directionality",
+          "code",
+          "visualblocks",
+          "visualchars",
+          "fullscreen",
           "image",
           "link",
-          "lists",
           "media",
-          "searchreplace",
+          "template",
+          "codesample",
           "table",
-          "visualblocks",
+          "charmap",
+          "pagebreak",
+          "nonbreaking",
+          "anchor",
+          "insertdatetime",
+          "advlist",
+          "lists",
           "wordcount",
-          // Your account includes a free trial of TinyMCE premium features
-          // Try the most popular premium features until Jun 15, 2025:
-          "checklist",
-          "mediaembed",
-          "casechange",
-          "formatpainter",
-          "pageembed",
-          "a11ychecker",
-          "tinymcespellchecker",
-          "permanentpen",
-          "powerpaste",
-          "advtable",
-          "advcode",
-          "editimage",
-          "advtemplate",
-          "ai",
-          "mentions",
+          "help",
+          "charmap",
+          "emoticons",
           "tinycomments",
-          "tableofcontents",
-          "footnotes",
-          "mergetags",
-          "autocorrect",
-          "typography",
-          "inlinecss",
-          "markdown",
-          "importword",
-          "exportword",
-          "exportpdf",
+          "spellchecker",
+          "quickbars",
+          "ai",
         ],
         toolbar:
-          "undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat",
+          "undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | align lineheight | " +
+          "link image media table | codesample | numlist bullist checklist | emoticons charmap | " +
+          "template customButton | removeformat preview fullscreen",
+        toolbar_sticky: true,
+        autosave_interval: "30s",
         tinycomments_mode: "embedded",
-        tinycomments_author: "Author name",
-        mergetags_list: [
-          { value: "First.Name", title: "First Name" },
-          { value: "Email", title: "Email" },
+        tinycomments_author: "Author Name",
+        codesample_languages: [
+          { text: "HTML/XML", value: "markup" },
+          { text: "JavaScript", value: "javascript" },
+          { text: "CSS", value: "css" },
+          { text: "Python", value: "python" },
+          { text: "Java", value: "java" },
         ],
+        templates: [
+          {
+            title: "Meeting Notes",
+            description: "Template for meeting notes",
+            content:
+              "<h2>Meeting Notes</h2><ul><li>Agenda</li><li>Discussion</li><li>Action Items</li></ul>",
+          },
+          {
+            title: "Simple Quote",
+            description: "Insert a blockquote",
+            content: "<blockquote>Your quote here</blockquote>",
+          },
+        ],
+        images_upload_handler: (blobInfo, success, failure) => {
+          // Mock upload
+          const mockURL = "https://via.placeholder.com/150";
+          success(mockURL);
+        },
         ai_request: (request, respondWith) =>
           respondWith.string(() =>
-            Promise.reject("See docs to implement AI Assistant")
+            Promise.reject("AI Assistant not implemented")
           ),
+        setup: (editor) => {
+          editor.ui.registry.addButton("customButton", {
+            text: "💡 Insert Tip",
+            onAction: () => {
+              editor.insertContent(
+                "<p><strong>💡 Tip:</strong> Always write clean, semantic HTML!</p>"
+              );
+            },
+          });
+        },
       }}
-      initialValue="Welcome to TinyMCE!"
+      initialValue="<p>Welcome to your enhanced TinyMCE Editor!</p>"
     />
   );
 }

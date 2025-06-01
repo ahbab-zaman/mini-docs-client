@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function CreateDocumentModal({ isOpen, onClose }) {
+// Modal component
+function CreateDocumentModal({ isOpen, onClose, onCreate }) {
   const [title, setTitle] = useState("");
-  const router = useRouter();
 
   const handleCreate = () => {
-    const id = Date.now().toString(); // You can use UUID or MongoDB _id
-    router.push(`/document/${id}?title=${encodeURIComponent(title)}`);
+    if (!title.trim()) return;
+    const id = Date.now().toString();
+    onCreate({ id, title });
     onClose();
+    setTitle("");
   };
 
   if (!isOpen) return null;
@@ -38,5 +40,68 @@ export default function CreateDocumentModal({ isOpen, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main section with button + document list
+export default function CreateDocumentSection() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const router = useRouter();
+
+  // Load from localStorage on first load
+  useEffect(() => {
+    const savedDocs = JSON.parse(localStorage.getItem("documents") || "[]");
+    setDocuments(savedDocs);
+  }, []);
+
+  // Save to localStorage whenever documents change
+  useEffect(() => {
+    localStorage.setItem("documents", JSON.stringify(documents));
+  }, [documents]);
+
+  const handleCreate = (doc) => {
+    setDocuments((prev) => [doc, ...prev]);
+    router.push(`/document/${doc.id}?title=${encodeURIComponent(doc.title)}`);
+  };
+
+  return (
+    <main className="p-10">
+      <button
+        onClick={() => setIsOpen(true)}
+        className="bg-blue-600 text-white px-6 py-2 rounded shadow"
+      >
+        Create New Document
+      </button>
+
+      <CreateDocumentModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onCreate={handleCreate}
+      />
+
+      {/* Document List */}
+      {documents.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-4">Your Documents</h3>
+          <ul className="space-y-2">
+            {documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="p-4 border rounded hover:bg-gray-100 cursor-pointer"
+                onClick={() =>
+                  router.push(
+                    `/document/${doc.id}?title=${encodeURIComponent(doc.title)}`
+                  )
+                }
+              >
+                <div className="font-medium">{doc.title}</div>
+                <div className="text-sm text-gray-500">ID: {doc.id}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </main>
   );
 }
