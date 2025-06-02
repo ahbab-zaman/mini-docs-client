@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import QuillEditor from "@/app/components/QuillEditor"; // Adjust path if needed
+import QuillEditor from "@/app/components/RichEditor"; // Adjust path if needed
 
 export default function DocumentPage() {
   const searchParams = useSearchParams();

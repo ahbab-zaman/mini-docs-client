@@ -11,7 +11,7 @@ const Editor = dynamic(
   }
 );
 
-export default function QuillEditor({ value, onChange }) {
+export default function RichEditor({ value, onChange }) {
   return (
     <Editor
       value={value}

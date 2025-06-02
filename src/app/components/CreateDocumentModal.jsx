@@ -2,83 +2,105 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
-// Modal component
-function CreateDocumentModal({ isOpen, onClose, onCreate }) {
-  const [title, setTitle] = useState("");
-
-  const handleCreate = () => {
-    if (!title.trim()) return;
-    const id = Date.now().toString();
-    onCreate({ id, title });
-    onClose();
-    setTitle("");
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-md w-full max-w-md shadow-lg">
-        <h2 className="text-xl font-semibold mb-4">Create New Document</h2>
-        <input
-          className="w-full border px-3 py-2 rounded mb-4"
-          placeholder="Document Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200">
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 rounded bg-blue-600 text-white"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Main section with button + document list
 export default function CreateDocumentSection() {
   const [isOpen, setIsOpen] = useState(false);
   const [documents, setDocuments] = useState([]);
+  const [title, setTitle] = useState("");
+  const [editId, setEditId] = useState(null);
   const router = useRouter();
 
-  // Load from localStorage on first load
   useEffect(() => {
-    const savedDocs = JSON.parse(localStorage.getItem("documents") || "[]");
-    setDocuments(savedDocs);
+    fetchDocuments();
   }, []);
 
-  // Save to localStorage whenever documents change
-  useEffect(() => {
-    localStorage.setItem("documents", JSON.stringify(documents));
-  }, [documents]);
+  const fetchDocuments = async () => {
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/documents`);
+    setDocuments(res.data);
+  };
 
-  const handleCreate = (doc) => {
-    setDocuments((prev) => [doc, ...prev]);
-    router.push(`/document/${doc.id}?title=${encodeURIComponent(doc.title)}`);
+  const handleCreateOrUpdate = async () => {
+    if (!title.trim()) return;
+
+    if (editId) {
+      await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/documents/${editId}`,
+        {
+          title,
+        }
+      );
+    } else {
+      const res = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/documents`,
+        {
+          title,
+        }
+      );
+      router.push(
+        `/document/${res.data._id}?title=${encodeURIComponent(res.data.title)}`
+      );
+    }
+
+    setTitle("");
+    setEditId(null);
+    setIsOpen(false);
+    fetchDocuments();
+  };
+
+  const handleDelete = async (id) => {
+    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/documents/${id}`);
+    fetchDocuments();
+  };
+
+  const handleEdit = (doc) => {
+    setTitle(doc.title);
+    setEditId(doc._id);
+    setIsOpen(true);
   };
 
   return (
     <main className="p-10">
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          setTitle("");
+          setEditId(null);
+        }}
         className="bg-blue-600 text-white px-6 py-2 rounded shadow"
       >
         Create New Document
       </button>
 
-      <CreateDocumentModal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        onCreate={handleCreate}
-      />
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-md w-full max-w-md shadow-lg">
+            <h2 className="text-xl font-semibold mb-4">
+              {editId ? "Edit Document" : "Create New Document"}
+            </h2>
+            <input
+              className="w-full border px-3 py-2 rounded mb-4"
+              placeholder="Document Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="px-4 py-2 rounded bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateOrUpdate}
+                className="px-4 py-2 rounded bg-blue-600 text-white"
+              >
+                {editId ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document List */}
       {documents.length > 0 && (
@@ -87,16 +109,36 @@ export default function CreateDocumentSection() {
           <ul className="space-y-2">
             {documents.map((doc) => (
               <li
-                key={doc.id}
-                className="p-4 border rounded hover:bg-gray-100 cursor-pointer"
-                onClick={() =>
-                  router.push(
-                    `/document/${doc.id}?title=${encodeURIComponent(doc.title)}`
-                  )
-                }
+                key={doc._id}
+                className="p-4 border rounded flex justify-between items-center"
               >
-                <div className="font-medium">{doc.title}</div>
-                <div className="text-sm text-gray-500">ID: {doc.id}</div>
+                <div
+                  onClick={() =>
+                    router.push(
+                      `/document/${doc._id}?title=${encodeURIComponent(
+                        doc.title
+                      )}`
+                    )
+                  }
+                  className="cursor-pointer"
+                >
+                  <div className="font-medium">{doc.title}</div>
+                  <div className="text-sm text-gray-500">ID: {doc._id}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(doc)}
+                    className="text-blue-600 text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(doc._id)}
+                    className="text-red-600 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

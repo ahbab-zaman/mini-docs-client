@@ -5,7 +5,7 @@ import CreateDocumentButton from './components/CreateDocumentButton';
 const page = () => {
   return (
     <div>
-     <Navbar />
+     {/* <Navbar /> */}
      <CreateDocumentButton />
     </div>
   );
