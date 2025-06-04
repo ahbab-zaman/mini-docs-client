@@ -2,79 +2,173 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import io from "socket.io-client";
+import { debounce } from "lodash";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaSpinner } from "react-icons/fa";
+import { PiNotePencilBold } from "react-icons/pi";
 
 const Editor = dynamic(
   () => import("@tinymce/tinymce-react").then((mod) => mod.Editor),
   { ssr: false }
 );
 
-// Create the socket connection once outside the component
-const socket = io("http://localhost:5000"); // Your backend URL
+const socket = io(`${process.env.NEXT_PUBLIC_API_URL}`);
 
 const RichEditor = ({ docId }) => {
   const editorRef = useRef(null);
-  const [content, setContent] = useState("<p>Loading document...</p>");
-  const [isUpdatingFromSocket, setIsUpdatingFromSocket] = useState(false);
+  const router = useRouter();
+  const [content, setContent] = useState("");
+  const [saveStatus, setSaveStatus] = useState("Saved");
 
   useEffect(() => {
     if (!docId) return;
 
-    // Join document room
     socket.emit("join-doc", docId);
 
-    // Listen for changes from server (other users)
-    const handleReceiveChanges = (newContent) => {
-      setIsUpdatingFromSocket(true);
-      setContent(newContent);
+    socket.on("load-document", (doc) => {
+      setContent(doc.content || "");
       if (editorRef.current) {
-        editorRef.current.setContent(newContent);
+        editorRef.current.setContent(doc.content || "", { format: "raw" });
       }
-      setIsUpdatingFromSocket(false);
-    };
+    });
 
-    socket.on("receive-changes", handleReceiveChanges);
+    socket.on("receive-changes", ({ content: serverContent, source }) => {
+      if (!editorRef.current) return;
+      if (source === socket.id) return;
 
-    // Cleanup on unmount or docId change
+      const currentContent = editorRef.current.getContent({ format: "raw" });
+      if (serverContent !== currentContent) {
+        editorRef.current.setContent(serverContent, { format: "raw" });
+      }
+    });
+
     return () => {
-      socket.emit("leave-room", docId);
-      socket.off("receive-changes", handleReceiveChanges);
+      socket.emit("leave-doc", docId);
+      socket.off("receive-changes");
+      socket.off("load-document");
     };
   }, [docId]);
 
-  // Emit changes when user edits content (avoid feedback loops)
-  const handleEditorChange = (newContent) => {
-    setContent(newContent);
-
-    if (!isUpdatingFromSocket) {
-      socket.emit("content-change", { docId, content: newContent });
+  const saveContent = async (newContent) => {
+    setSaveStatus("Saving...");
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/${docId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: newContent }),
+      });
+      setSaveStatus("Saved");
+    } catch (err) {
+      console.error("Failed to save document:", err);
+      setSaveStatus("Error");
     }
   };
 
+  const debouncedSave = useRef(
+    debounce((newContent) => {
+      saveContent(newContent);
+    }, 1000)
+  ).current;
+
+  const handleEditorChange = (newContent) => {
+    setContent(newContent);
+    socket.emit("content-change", {
+      docId,
+      content: newContent,
+      source: socket.id,
+    });
+    debouncedSave(newContent);
+  };
+
   return (
-    <div>
-      <Editor
-        onInit={(evt, editor) => (editorRef.current = editor)}
-        value={content}
-        onEditorChange={handleEditorChange}
-        apiKey={"ulke50is6kx5hxrisolo6yrbn85rvhggxkyqfbmzy71qgzr9"}
-        tinymceScriptSrc="https://cdn.tiny.cloud/1/ulke50is6kx5hxrisolo6yrbn85rvhggxkyqfbmzy71qgzr9/tinymce/6/tinymce.min.js"
-        init={{
-          height: 600,
-          menubar: true,
-          plugins: [
-            "advlist autolink lists link image charmap preview anchor",
-            "searchreplace visualblocks code fullscreen",
-            "insertdatetime media table help wordcount",
-          ],
-          toolbar:
-            "undo redo | formatselect | bold italic backcolor | " +
-            "alignleft aligncenter alignright alignjustify | " +
-            "bullist numlist outdent indent | removeformat | help",
-          content_style:
-            "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
-        }}
-      />
+    <div className="min-h-screen bg-gray-50 p-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+        {/* Home Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="flex items-center gap-2 text-purple-700 hover:text-purple-900 transition"
+        >
+          <PiNotePencilBold size={22} />
+          <span className="font-semibold text-md sm:text-lg">Home</span>
+        </button>
+
+        {/* Document Title */}
+        <h1 className="text-xl sm:text-2xl font-bold text-center text-gray-700">
+          Document Editor
+        </h1>
+
+        {/* Save Status */}
+        <div className="text-sm text-right min-w-[120px]">
+          <AnimatePresence>
+            {saveStatus === "Saving..." && (
+              <motion.span
+                key="saving"
+                className="flex items-center gap-1 text-yellow-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <FaSpinner className="animate-spin" /> Saving...
+              </motion.span>
+            )}
+            {saveStatus === "Saved" && (
+              <motion.span
+                key="saved"
+                className="text-green-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                ✓ Saved
+              </motion.span>
+            )}
+            {saveStatus === "Error" && (
+              <motion.span
+                key="error"
+                className="text-red-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                ⚠ Error
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Editor Section */}
+      <motion.div
+        className="bg-white rounded-xl shadow-md overflow-hidden"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Editor
+          apiKey="ulke50is6kx5hxrisolo6yrbn85rvhggxkyqfbmzy71qgzr9"
+          onInit={(evt, editor) => (editorRef.current = editor)}
+          value={content}
+          init={{
+            height: 500,
+            menubar: true,
+            plugins: [
+              "advlist autolink lists link image charmap preview anchor",
+              "searchreplace visualblocks code fullscreen",
+              "insertdatetime media table code help wordcount",
+            ],
+            toolbar:
+              "undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code",
+            content_style:
+              "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
+          }}
+          onEditorChange={handleEditorChange}
+        />
+      </motion.div>
     </div>
   );
 };
