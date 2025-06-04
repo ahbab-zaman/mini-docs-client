@@ -1,10 +1,12 @@
-import React from 'react';
-import RichEditor from './components/RichEditor';
+import React from "react";
+import Navbar from "./components/Navbar";
+import CreateButton from "./components/CreateButton";
 
 const page = () => {
   return (
     <div>
-      <RichEditor />
+      <Navbar />
+      <CreateButton />
     </div>
   );
 };

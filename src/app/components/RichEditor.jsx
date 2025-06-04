@@ -1,22 +1,53 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import io from "socket.io-client";
 
 const Editor = dynamic(
   () => import("@tinymce/tinymce-react").then((mod) => mod.Editor),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 );
 
-const RichEditor = () => {
-  const editorRef = useRef(null);
-  console.log("Tiny API key:", process.env.NEXT_PUBLIC_TINY_KEY);
+// Create the socket connection once outside the component
+const socket = io("http://localhost:5000"); // Your backend URL
 
-  const logContent = () => {
-    if (editorRef.current) {
-      console.log(editorRef.current.getContent());
+const RichEditor = ({ docId }) => {
+  const editorRef = useRef(null);
+  const [content, setContent] = useState("<p>Loading document...</p>");
+  const [isUpdatingFromSocket, setIsUpdatingFromSocket] = useState(false);
+
+  useEffect(() => {
+    if (!docId) return;
+
+    // Join document room
+    socket.emit("join-doc", docId);
+
+    // Listen for changes from server (other users)
+    const handleReceiveChanges = (newContent) => {
+      setIsUpdatingFromSocket(true);
+      setContent(newContent);
+      if (editorRef.current) {
+        editorRef.current.setContent(newContent);
+      }
+      setIsUpdatingFromSocket(false);
+    };
+
+    socket.on("receive-changes", handleReceiveChanges);
+
+    // Cleanup on unmount or docId change
+    return () => {
+      socket.emit("leave-room", docId);
+      socket.off("receive-changes", handleReceiveChanges);
+    };
+  }, [docId]);
+
+  // Emit changes when user edits content (avoid feedback loops)
+  const handleEditorChange = (newContent) => {
+    setContent(newContent);
+
+    if (!isUpdatingFromSocket) {
+      socket.emit("content-change", { docId, content: newContent });
     }
   };
 
@@ -24,88 +55,26 @@ const RichEditor = () => {
     <div>
       <Editor
         onInit={(evt, editor) => (editorRef.current = editor)}
+        value={content}
+        onEditorChange={handleEditorChange}
         apiKey={"ulke50is6kx5hxrisolo6yrbn85rvhggxkyqfbmzy71qgzr9"}
         tinymceScriptSrc="https://cdn.tiny.cloud/1/ulke50is6kx5hxrisolo6yrbn85rvhggxkyqfbmzy71qgzr9/tinymce/6/tinymce.min.js"
-        initialValue="<p>Write your content here...</p>"
         init={{
           height: 600,
           menubar: true,
           plugins: [
-            "advlist",
-            "autolink",
-            "lists",
-            "link",
-            "image",
-            "charmap",
-            "print",
-            "preview",
-            "anchor",
-            "searchreplace",
-            "visualblocks",
-            "code",
-            "fullscreen",
-            "insertdatetime",
-            "media",
-            "table",
-            "paste",
-            "help",
-            "wordcount",
-            "autosave",
-            "emoticons",
-            "mentions",
-            "codesample",
+            "advlist autolink lists link image charmap preview anchor",
+            "searchreplace visualblocks code fullscreen",
+            "insertdatetime media table help wordcount",
           ],
           toolbar:
-            "undo redo | formatselect | " +
-            "bold italic underline strikethrough | forecolor backcolor | " +
+            "undo redo | formatselect | bold italic backcolor | " +
             "alignleft aligncenter alignright alignjustify | " +
-            "bullist numlist outdent indent | " +
-            "link image media | codesample emoticons | " +
-            "removeformat | fullscreen | help",
-          autosave_interval: "30s",
-          autosave_prefix: "tinymce-autosave-{path}{query}-{id}-",
-          autosave_restore_when_empty: true,
-          autosave_retention: "2m",
-
-          automatic_uploads: true,
-          file_picker_types: "image media",
-          file_picker_callback: (callback, value, meta) => {
-            if (meta.filetype === "image") {
-              const input = document.createElement("input");
-              input.setAttribute("type", "file");
-              input.setAttribute("accept", "image/*");
-              input.onchange = function () {
-                const file = this.files[0];
-                const reader = new FileReader();
-                reader.onload = function () {
-                  callback(reader.result, { alt: file.name });
-                };
-                reader.readAsDataURL(file);
-              };
-              input.click();
-            }
-          },
-
-          mentions_selector: ".mymention",
-          mentions_fetch: function (pattern, success) {
-            const users = [
-              { id: "1", name: "John Doe" },
-              { id: "2", name: "Jane Smith" },
-              { id: "3", name: "Billy Bob" },
-            ];
-            const matches = users.filter((user) =>
-              user.name.toLowerCase().includes(pattern.toLowerCase())
-            );
-            success(matches);
-          },
-
+            "bullist numlist outdent indent | removeformat | help",
           content_style:
             "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
         }}
       />
-      <button onClick={logContent} style={{ marginTop: 20 }}>
-        Log Content
-      </button>
     </div>
   );
 };

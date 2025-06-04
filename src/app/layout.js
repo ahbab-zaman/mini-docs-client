@@ -28,7 +28,6 @@ export default function RootLayout({ children }) {
       >
         <NextProviders>
           <UserProvider>
-            <Navbar />
             {children}
           </UserProvider>
         </NextProviders>
