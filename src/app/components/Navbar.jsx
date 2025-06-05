@@ -4,7 +4,8 @@ import Link from "next/link";
 import { signIn, signOut } from "next-auth/react";
 import { useUser } from "../utils/UserContext";
 import { useRouter } from "next/navigation";
-
+import Image from "next/image";
+import logo from "../assets/google-docs.png";
 export default function Navbar() {
   const { user } = useUser();
   const router = useRouter();
@@ -17,7 +18,10 @@ export default function Navbar() {
   return (
     <nav className="bg-purple-600 text-white p-4 flex justify-between items-center">
       <Link href="/">
-        <h1 className="text-xl font-bold cursor-pointer">Docs</h1>
+        <div className="flex items-center gap-1">
+          <Image src={logo} width={22} height={22} alt="Logo" />
+          <h1 className="text-xl font-bold cursor-pointer">DocY</h1>
+        </div>
       </Link>
 
       <div className="flex items-center space-x-4">

@@ -7,7 +7,8 @@ import io from "socket.io-client";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaSpinner } from "react-icons/fa";
-import { PiNotePencilBold } from "react-icons/pi";
+import html2pdf from "html2pdf.js";
+import htmlDocx from "html-docx-js/dist/html-docx";
 
 const Editor = dynamic(
   () => import("@tinymce/tinymce-react").then((mod) => mod.Editor),
@@ -84,65 +85,108 @@ const RichEditor = ({ docId }) => {
     debouncedSave(newContent);
   };
 
+  // ===== Export Handlers =====
+
+  const handleExportHTML = () => {
+    const blob = new Blob([content], { type: "text/html" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "document.html";
+    link.click();
+  };
+
+  const handleExportDOCX = () => {
+    const styledContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; }
+          </style>
+        </head>
+        <body>${content}</body>
+      </html>
+    `;
+    const docxBlob = htmlDocx.asBlob(styledContent);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(docxBlob);
+    link.download = "document.docx";
+    link.click();
+  };
+
+  const handleExportPDF = () => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+    iframe.contentDocument.write(content);
+    iframe.onload = () => {
+      html2pdf().from(iframe.contentDocument.body).save("document.pdf");
+    };
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
-        {/* Home Button */}
-        <button
-          onClick={() => router.push("/")}
-          className="flex items-center gap-2 text-purple-700 hover:text-purple-900 transition"
-        >
-          <PiNotePencilBold size={22} />
-          <span className="font-semibold text-md sm:text-lg">Home</span>
-        </button>
-
-        {/* Document Title */}
-        <h1 className="text-xl sm:text-2xl font-bold text-center text-gray-700">
-          Document Editor
-        </h1>
-
-        {/* Save Status */}
-        <div className="text-sm text-right min-w-[120px]">
-          <AnimatePresence>
-            {saveStatus === "Saving..." && (
-              <motion.span
-                key="saving"
-                className="flex items-center gap-1 text-yellow-600"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <FaSpinner className="animate-spin" /> Saving...
-              </motion.span>
-            )}
-            {saveStatus === "Saved" && (
-              <motion.span
-                key="saved"
-                className="text-green-600"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                ✓ Saved
-              </motion.span>
-            )}
-            {saveStatus === "Error" && (
-              <motion.span
-                key="error"
-                className="text-red-500"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                ⚠ Error
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Save Status */}
+      <div className="text-sm text-right min-w-[120px] mb-2">
+        <AnimatePresence>
+          {saveStatus === "Saving..." && (
+            <motion.span
+              key="saving"
+              className="flex items-center gap-1 text-yellow-600"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <FaSpinner className="animate-spin" /> Saving...
+            </motion.span>
+          )}
+          {saveStatus === "Saved" && (
+            <motion.span
+              key="saved"
+              className="text-green-600"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              ✓ Saved
+            </motion.span>
+          )}
+          {saveStatus === "Error" && (
+            <motion.span
+              key="error"
+              className="text-red-500"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              ⚠ Error
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Editor Section */}
+      {/* Export Buttons */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={handleExportHTML}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Export as HTML
+        </button>
+        <button
+          onClick={handleExportDOCX}
+          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+        >
+          Export as DOCX
+        </button>
+        <button
+          onClick={handleExportPDF}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+        >
+          Export as PDF
+        </button>
+      </div>
+
+      {/* Editor */}
       <motion.div
         className="bg-white rounded-xl shadow-md overflow-hidden"
         initial={{ opacity: 0, y: 15 }}
