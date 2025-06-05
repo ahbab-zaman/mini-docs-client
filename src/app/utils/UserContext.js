@@ -1,4 +1,3 @@
-// context/UserContext.js or .ts
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -11,7 +10,7 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Manual login (localStorage)
+    // Load local login info (if exists)
     const localUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
 
@@ -19,7 +18,7 @@ export const UserProvider = ({ children }) => {
       setUser(JSON.parse(localUser));
     }
 
-    // Google login (NextAuth session)
+    // If NextAuth session (Google login)
     if (session?.user) {
       setUser({
         fullName: session.user.name,

@@ -15,18 +15,21 @@ const Editor = dynamic(
   { ssr: false }
 );
 
-const socket = io(`${process.env.NEXT_PUBLIC_API_URL}`);
+// Initialize socket once outside the component to avoid multiple connections
+const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000");
 
-const RichEditor = ({ docId }) => {
+const RichEditor = ({ docId, currentUser }) => {
   const editorRef = useRef(null);
   const router = useRouter();
   const [content, setContent] = useState("");
   const [saveStatus, setSaveStatus] = useState("Saved");
+  const [onlineUsers, setOnlineUsers] = useState([]);
 
   useEffect(() => {
     if (!docId) return;
 
-    socket.emit("join-doc", docId);
+    // Join document room and send user info to server
+    socket.emit("join-doc", { docId, user: currentUser });
 
     socket.on("load-document", (doc) => {
       setContent(doc.content || "");
@@ -45,12 +48,18 @@ const RichEditor = ({ docId }) => {
       }
     });
 
+    // Listen for online users updates
+    socket.on("online-users", (users) => {
+      setOnlineUsers(users);
+    });
+
     return () => {
-      socket.emit("leave-doc", docId);
+      socket.emit("leave-doc", { docId, user: currentUser });
       socket.off("receive-changes");
       socket.off("load-document");
+      socket.off("online-users");
     };
-  }, [docId]);
+  }, [docId, currentUser]);
 
   const saveContent = async (newContent) => {
     setSaveStatus("Saving...");
@@ -77,16 +86,19 @@ const RichEditor = ({ docId }) => {
 
   const handleEditorChange = (newContent) => {
     setContent(newContent);
+
+    // Emit content changes to socket
     socket.emit("content-change", {
       docId,
       content: newContent,
       source: socket.id,
     });
+
+    // Save with debounce
     debouncedSave(newContent);
   };
 
-  // ===== Export Handlers =====
-
+  // Export handlers
   const handleExportHTML = () => {
     const blob = new Blob([content], { type: "text/html" });
     const link = document.createElement("a");
@@ -120,6 +132,7 @@ const RichEditor = ({ docId }) => {
     iframe.contentDocument.write(content);
     iframe.onload = () => {
       html2pdf().from(iframe.contentDocument.body).save("document.pdf");
+      document.body.removeChild(iframe);
     };
   };
 
@@ -162,6 +175,39 @@ const RichEditor = ({ docId }) => {
             </motion.span>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Online Users */}
+      <div className="mb-4">
+        <h4 className="font-semibold mb-1">Currently online:</h4>
+        <div className="flex items-center gap-3 overflow-x-auto max-w-full">
+          {onlineUsers.length === 0 && (
+            <span className="text-gray-500">No one else is online.</span>
+          )}
+          {onlineUsers.map((user) => (
+            <div
+              key={user.id}
+              className="flex flex-col items-center text-center min-w-[60px]"
+              title={user.fullName || user.name || ""}
+              s
+            >
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.fullName || user.name || ""}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold uppercase">
+                  {(user.fullName || user.name || "").charAt(0)}
+                </div>
+              )}
+              <span className="text-xs mt-1 truncate max-w-[60px]">
+                {user.fullName || user.name || "Unknown"}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Export Buttons */}
